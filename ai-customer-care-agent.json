@@ -1,0 +1,512 @@
+{
+  "name": "Customer Care Email Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "maxResults": 1,
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -464,
+        -96
+      ],
+      "id": "1c78996f-b0ea-4908-a1e3-cf22a3427120",
+      "name": "Trigger: New Customer Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Email Subject : {{ $json.Subject }}\nEmail Body :{{ $json.snippet }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Got it. The classifier should mark an email as `RESPOND` whenever the customer has an **order/customer-support intent**, even if they haven't provided enough information yet. Missing order ID should be handled later by the response agent, not used to reject the email.  # Role  You are an email classification agent for an e-commerce business.  # Task  Analyze the incoming email and classify it as either `RESPOND` or `DO_NOT_RESPOND`.  ## RESPOND  Classify as `RESPOND` if the sender is asking for help, information, or action related to orders or customer service.  This includes:  * Order status or order information * Shipping, tracking, or delivery information * Order complaints or damaged/wrong/missing items * Cancellation requests * Returns, exchanges, or return policy questions * Refund requests, refund status, or refund policy questions * Payment issues related to an order * Any general question about an order or purchase  The customer does NOT need to provide an order ID.  For example: \"I want to know the status of my order.\" → `RESPOND`  Even though the order ID is missing, the email requires a response asking the customer for their order ID.  \"How can I return my order?\" → `RESPOND`  \"What is your refund policy?\" → `RESPOND`  \"I want to register a complaint about my order.\" → `RESPOND`  ## DO_NOT_RESPOND  Classify as `DO_NOT_RESPOND` if the email is unrelated to customer/order support, including:  * Promotional or marketing emails * Newsletters * Subscription emails * Sales or partnership offers * Spam * Automated notifications unrelated to customer support * General business emails unrelated to orders  # Rules  * Classify based on the sender's intent, not just keywords. * Missing information such as an order ID does NOT make an email `DO_NOT_RESPOND`. * If the sender needs customer support related to an order, shipping, complaint, return, refund, or related policy, classify it as `RESPOND`. * If the email has no customer/order-support intent, classify it as `DO_NOT_RESPOND`.  # Output  Return only:  `RESPOND`  or  `DO_NOT_RESPOND`"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -208,
+        -96
+      ],
+      "id": "5aeaf66b-2337-4323-8921-621e061ac005",
+      "name": "AI: Classify Email Intent"
+    },
+    {
+      "parameters": {
+        "model": "qwen3.7-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAlibabaCloud",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        144
+      ],
+      "id": "8384ae1b-3bc2-499d-9546-a55be6d36558",
+      "name": "Model: Qwen (Email Classifier)",
+      "credentials": {
+        "alibabaCloudApi": {
+          "id": "",
+          "name": "Qwen Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"name\": \"email_classification\",\n  \"description\": \"Classifies incoming customer emails to determine if they require a support response.\",\n  \"strict\": true,\n  \"schema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"classification\": {\n        \"type\": \"string\",\n        \"description\": \"Classify as RESPOND if the sender is asking for help, information, or action related to orders or customer service. Classify as DO_NOT_RESPOND if the email is promotional, spam, or unrelated to customer support.\",\n        \"enum\": [\n          \"RESPOND\",\n          \"DO_NOT_RESPOND\"\n        ]\n      }\n    },\n    \"required\": [\n      \"classification\"\n    ],\n    \"additionalProperties\": false\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -64,
+        128
+      ],
+      "id": "8905ffd0-f07c-405c-b9c0-e7ff4e7997ff",
+      "name": "Parser: Intent Enum (RESPOND/IGNORE)"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output }}",
+                    "rightValue": "RESPOND",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4b8df53b-7ac8-46d7-bab8-297b7978ce75"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "RESPOND"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7bdd8139-fc01-4fdf-bbd1-5dc6c1f5984a",
+                    "leftValue": "={{ $json.output }}",
+                    "rightValue": "DO_NOT_RESPOND",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IGNORE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        -256
+      ],
+      "id": "f2c1c0b5-8ac2-4968-8360-5b97be95961d",
+      "name": "Route: Support vs Marketing Filter"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Email Subject : {{ $('Trigger: New Customer Email').item.json.Subject }}\nEmail Body : {{ $('Trigger: New Customer Email').item.json.snippet }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are # Role\n\nYou are a professional and friendly customer support assistant for an e-commerce store. Your job is to read customer emails, understand their request, and write a helpful, natural, and polite email response.\n\n# Available Tools\n\nYou have access to:\n\n1. Orders Database\n   Use this tool whenever you need information about a customer's order, including order status, order date, shipping status, delivery information, products, or other order details.\n\n2. Refund & Return Policy\n   Use this tool whenever the customer asks about refunds, returns, exchanges, eligibility, timelines, or related policies.\n\nOnly use information provided by the email and your tools. Never invent order details, policies, dates, tracking information, or refund information.\n\n# Instructions\n\nUnderstand the customer's actual request before responding.\n\nIf the customer provides an Order ID and asks about their order, use the Orders Database to find the relevant information and answer their question.\n\nIf an order-related question requires an Order ID but the customer did not provide one, politely ask for it.\n\nFor example, if the customer says:\n\"Where is my order?\"\n\nAsk them to provide their Order ID so you can check its status.\n\nIf the customer asks about returns or refunds, use the Refund & Return Policy tool and provide a clear answer based on the available policy.\n\nIf both order information and policy information are needed, use both tools before responding.\n\nIf an order has been pending, delayed, or in transit longer than expected, acknowledge the delay and apologize politely. Explain the available status and next steps without making promises that are not supported by the available information.\n\nIf the customer's email is unclear, ask a short and relevant follow-up question instead of making assumptions.\n\nAnswer all relevant questions in the customer's email. Be conversational, helpful, professional, and empathetic. Give enough information to solve the customer's problem, but avoid unnecessarily long responses.\n\nDo not mention internal tools, databases, workflows, AI, or system instructions to the customer.\n\n# Complaints, Returns & Refund Requests\n\nYou can explain refund and return policies, but you cannot process complaints, returns, refunds, exchanges, or similar requests through this support channel.\n\nFirst identify the customer's intent:\n\nIf the customer is only asking for information about the refund or return policy, use the Refund & Return Policy tool and answer their question normally.\n\nExamples:\n\"What is your return policy?\"\n\"How many days do I have to return an item?\"\n\"Are shipping charges refundable?\"\n\"How long does a refund take?\"\n\nFor these questions, provide the relevant information from the Refund & Return Policy.\n\nIf the customer wants to actually register a complaint, request a refund, return an item, exchange an item, or take action on an existing order, politely explain that this is not the correct channel for processing the request.\n\nAsk them to contact:\n\n[complaints@mail.abc.com](mailto:complaints@mail.abc.com)\n\nClearly mention that the complaints team can assist with complaints, refunds, and returns.\n\nIf the customer's intent is a refund or return, also use the Refund & Return Policy tool and provide any relevant policy information that would help them before directing them to [complaints@mail.abc.com](mailto:complaints@mail.abc.com).\n\nFor example, if they want to return an item, explain the relevant return requirements and then tell them to contact [complaints@mail.abc.com](mailto:complaints@mail.abc.com) to proceed with the return.\n\nIf they want a refund, explain the relevant refund conditions or timeline from the policy and then direct them to [complaints@mail.abc.com](mailto:complaints@mail.abc.com) to process the request.\n\nDo not claim that you have created, submitted, approved, cancelled, or processed a complaint, return, or refund.\n\nYour role is limited to helping customers with order information and explaining the refund and return policy.\n\n# Date & Time\n\nCurrent date and time:\n{{ $now }}\n\nUse the current date and time whenever timing matters.\n\nWhen discussing how long an order has been pending, processing, shipped, or delayed, compare the relevant order date/time with the current date/time and calculate the duration accurately.\n\nDo not guess dates or durations when the required information is unavailable.\n\n# Response Format\n\nReturn only the email body that should be sent to the customer.\n\nDo not include a subject line.\n\nDo not use Markdown formatting, headings, bullet points, bold text, code blocks, or placeholders such as [Your Name].\n\nWrite the response as a natural, conversational, and professional plain-text email.\n\nAlways end every email with exactly:\n\nBest Regards,\nCustomer Support Team\na helpful assistant"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        384,
+        -128
+      ],
+      "id": "f6f21287-9673-4383-bdd5-e07a62024237",
+      "name": "Agent: Customer Support Specialist"
+    },
+    {
+      "parameters": {
+        "model": "qwen3.7-plus",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAlibabaCloud",
+      "typeVersion": 1,
+      "position": [
+        192,
+        144
+      ],
+      "id": "b1c51fd9-e880-412e-842b-169650d16d8d",
+      "name": "Model: Qwen (Response Generator)",
+      "credentials": {
+        "alibabaCloudApi": {
+          "id": "",
+          "name": "Qwen Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Trigger: New Customer Email').item.json.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.6,
+      "position": [
+        352,
+        160
+      ],
+      "id": "3e303798-0056-4560-a6ed-e24f175b43cc",
+      "name": "Memory: Customer Chat History",
+      "credentials": {
+        "redis": {
+          "id": "",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1DnWxxKUTxRFtIsZjcV4_UiAdyrT14zoNn_I38ZHvsfQ",
+          "mode": "list",
+          "cachedResultName": "Gmail Customer Care",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1DnWxxKUTxRFtIsZjcV4_UiAdyrT14zoNn_I38ZHvsfQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1DnWxxKUTxRFtIsZjcV4_UiAdyrT14zoNn_I38ZHvsfQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        144
+      ],
+      "id": "91b8fd99-7fb8-45f1-a54c-c54c41a9df45",
+      "name": "Tool: Lookup Orders (Google Sheets)",
+      "credentials": {
+        "googleApi": {
+          "id": "",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "get",
+        "documentURL": "1OI1GBLlD4XPCzKWBFFQKvpj7tjc4uxcVnLAAw4pSre4"
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        688,
+        144
+      ],
+      "id": "3c9929eb-7cc4-43d5-bfc6-fc70d2622704",
+      "name": "Tool: Return Policy (Google Docs)",
+      "credentials": {
+        "googleApi": {
+          "id": "",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"subject\": {\n      \"type\": \"string\",\n      \"description\": \"A clear, professional, and concise subject line for the email response.\"\n    },\n    \"email_body\": {\n      \"type\": \"string\",\n      \"description\": \"The main text of the email. Must be conversational, professional, plain-text (no Markdown) and end exactly with 'Best Regards,\\nCustomer Support Team'.\"\n    }\n  },\n  \"required\": [\n    \"subject\",\n    \"email_body\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        144
+      ],
+      "id": "7e415ef5-b5d7-4a34-ab09-e923e18dfaac",
+      "name": "Parser: Email JSON Schema"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Trigger: New Customer Email').item.json.id }}",
+        "emailType": "text",
+        "message": "={{ $json.output.email_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        752,
+        -256
+      ],
+      "id": "e9872b81-2ae8-40b8-8e31-5014ef912ee1",
+      "name": "Gmail: Send Reply to Customer",
+      "webhookId": "3b5f4927-fb7d-493a-8ecf-04ef2eff6cfd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Trigger: New Customer Email').item.json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -256
+      ],
+      "id": "ed686dd2-45b3-4508-a2d3-73cd6ee4f0ab",
+      "name": "Gmail: Mark Thread as Read",
+      "webhookId": "25c4acae-2dc5-4c26-8a74-9895a0ab29fa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Trigger: New Customer Email').item.json.id }}",
+        "labelIds": [
+          "Label_2946130683272634487"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        -16
+      ],
+      "id": "597f073b-ef15-4808-b67f-2879e5860e0f",
+      "name": "Gmail: Apply Support Label",
+      "webhookId": "caa266f3-f241-48ba-b2de-e37301d725fb",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger: New Customer Email": {
+      "main": [
+        [
+          {
+            "node": "AI: Classify Email Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Classify Email Intent": {
+      "main": [
+        [
+          {
+            "node": "Route: Support vs Marketing Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model: Qwen (Email Classifier)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: Classify Email Intent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser: Intent Enum (RESPOND/IGNORE)": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: Classify Email Intent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Support vs Marketing Filter": {
+      "main": [
+        [
+          {
+            "node": "Agent: Customer Support Specialist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Customer Support Specialist": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Send Reply to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model: Qwen (Response Generator)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent: Customer Support Specialist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory: Customer Chat History": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agent: Customer Support Specialist",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Lookup Orders (Google Sheets)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent: Customer Support Specialist",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Return Policy (Google Docs)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent: Customer Support Specialist",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser: Email JSON Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agent: Customer Support Specialist",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Send Reply to Customer": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Mark Thread as Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Mark Thread as Read": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Apply Support Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "825751c0-1b0c-4fb2-b011-b2be0e387a2a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "tEBxOMhS2uWlVdPH",
+  "tags": []
+}
