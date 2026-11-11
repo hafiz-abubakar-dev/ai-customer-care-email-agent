@@ -1,11 +1,11 @@
 # 🤖 AI Customer Care Email Agent: Autonomous Support & CRM Automation
 
-An enterprise-grade, 100% autonomous customer support system orchestrated in **n8n**. This AI-powered agent completely automates inbound email processing by intelligently classifying messages, filtering out marketing spam, retrieving live order details from Google Sheets, checking company return policies via Google Docs, and drafting context-aware, personalized replies via Gmail—all running on a **self-hosted Docker infrastructure**.
+An enterprise-grade, 100% autonomous customer support system orchestrated in **n8n**. This AI-powered agent completely automates inbound email processing by intelligently classifying messages, filtering out marketing spam, retrieving live order details from Google Sheets, checking company return policies via Google Docs, and drafting context-aware, personalized replies via Gmail—all securely running on a **self-hosted Docker infrastructure on a local server**.
 
 ---
 
 ## 🌟 Executive Summary
-Customer support teams spend countless hours filtering spam and looking up order statuses manually. This workflow introduces an intelligent **AI Support Specialist Agent** powered by **Alibaba Cloud Qwen LLMs**. It scans unread Gmail messages every minute, separates legitimate support queries from marketing emails, queries internal business databases dynamically, and automatically sends polite, professional plain-text responses while updating email labels and read statuses.
+Customer support teams spend countless hours filtering spam and looking up order statuses manually. This workflow introduces an intelligent **AI Support Specialist Agent** powered by **Alibaba Cloud Qwen LLMs**. It scans unread Gmail messages every minute, separates legitimate support queries from marketing emails, queries internal business databases dynamically, and automatically sends polite, professional plain-text responses while updating email labels and read statuses. All backend processing and API operations are securely isolated within a local Dockerized environment.
 
 ---
 
@@ -26,7 +26,7 @@ Customer support teams spend countless hours filtering spam and looking up order
 ## ⚙️ Core Tech Stack & AI Models
 
 ### 1. Infrastructure & Orchestration
-- **Engine:** n8n (Self-Hosted via Docker on Local Environment)
+- **Engine:** n8n (Self-Hosted via Docker Desktop on Local Server Environment)
 - **Memory Buffer:** Redis Chat Memory (`Memory: Customer Chat History`) for maintaining contextual threads per customer.
 - **Trigger:** Gmail Trigger (Polls unread customer support threads every minute).
 
@@ -56,8 +56,8 @@ Customer support teams spend countless hours filtering spam and looking up order
 
 ## 👨‍💻 Engineering Highlights & Problem Solving
 
-- **Dockerized Local Deployment:** Fully self-hosted on a local Docker server, guaranteeing absolute data confidentiality for sensitive customer communications and internal order records.
-- **Advanced Intent Filtering:** Eliminated false positives by decoupling missing data (such as a missing Order ID) from classification, ensuring customers asking "Where is my order?" are correctly routed to support instead of being dropped[cite: 10].
+- **Secure Dockerized Local Deployment:** Fully hosted on a self-hosted local Docker container, guaranteeing absolute data confidentiality for sensitive customer communications, service-account credentials, and internal store records without relying on expensive external SaaS clouds.
+- **Advanced Intent Filtering:** Eliminated false positives by decoupling missing data (such as a missing Order ID) from classification, ensuring customers asking "Where is my order?" are correctly routed to support instead of being dropped.
 - **Structured JSON Schema Enforcements:** Utilized rigid LangChain output parsers to guarantee reliable communication between the LLM agent and the downstream Gmail reply nodes, preventing malformed payloads.
 
 ---
